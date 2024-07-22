@@ -1,0 +1,83 @@
+type Message = variant {
+  Error : text;
+  InvalidPayload : text;
+  NotFound : text;
+  Success : text;
+  Unauthorized : text;
+};
+type MoneyTransaction = record {
+  id : nat64;
+  transaction_date : nat64;
+  created_at : nat64;
+  to_owner_id : nat64;
+  from_owner_id : nat64;
+  amount : nat64;
+};
+type MoneyTransactionPayload = record {
+  transaction_date : nat64;
+  to_owner_id : nat64;
+  from_owner_id : nat64;
+  amount : nat64;
+};
+type Owner = record {
+  id : nat64;
+  name : text;
+  created_at : nat64;
+  email : text;
+};
+type OwnerPayload = record { name : text; email : text };
+type Property = record {
+  id : nat64;
+  description : text;
+  created_at : nat64;
+  owner_id : nat64;
+  address : text;
+};
+type PropertyPayload = record {
+  description : text;
+  owner_id : nat64;
+  address : text;
+};
+type Result = variant { Ok : MoneyTransaction; Err : Message };
+type Result_1 = variant { Ok : Owner; Err : Message };
+type Result_2 = variant { Ok : Property; Err : Message };
+type Result_3 = variant { Ok : vec MoneyTransaction; Err : Message };
+type Result_4 = variant { Ok : vec Owner; Err : Message };
+type Result_5 = variant { Ok : vec Property; Err : Message };
+type Result_6 = variant { Ok : Transaction; Err : Message };
+type Result_7 = variant { Ok : vec Transaction; Err : Message };
+type SearchPropertyPayload = record {
+  owner_id : opt nat64;
+  address : opt text;
+};
+type Transaction = record {
+  id : nat64;
+  transaction_date : nat64;
+  created_at : nat64;
+  property_id : nat64;
+  to_owner_id : nat64;
+  from_owner_id : nat64;
+  amount : nat64;
+};
+type TransactionPayload = record {
+  transaction_date : nat64;
+  property_id : nat64;
+  to_owner_id : nat64;
+  from_owner_id : nat64;
+  amount : nat64;
+};
+service : {
+  create_money_transaction : (MoneyTransactionPayload) -> (Result);
+  create_owner : (OwnerPayload) -> (Result_1);
+  create_property : (PropertyPayload) -> (Result_2);
+  get_money_transaction_by_id : (nat64) -> (Result) query;
+  get_money_transactions : () -> (Result_3) query;
+  get_owner_by_id : (nat64) -> (Result_1) query;
+  get_owners : () -> (Result_4) query;
+  get_properties : () -> (Result_5) query;
+  get_property_by_id : (nat64) -> (Result_2) query;
+  get_transaction_by_id : (nat64) -> (Result_6) query;
+  get_transactions : () -> (Result_7) query;
+  search_properties : (SearchPropertyPayload) -> (Result_5) query;
+  transfer_property : (TransactionPayload) -> (Result_6);
+}
