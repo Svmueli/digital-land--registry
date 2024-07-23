@@ -176,6 +176,20 @@ struct SearchPropertyPayload {
 }
 
 #[derive(candid::CandidType, Deserialize, Serialize)]
+struct UpdateOwnerPayload {
+    id: u64,
+    name: Option<String>,
+    email: Option<String>,
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+struct SearchTransactionPayload {
+    from_owner_id: Option<u64>,
+    to_owner_id: Option<u64>,
+    property_id: Option<u64>,
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
 enum Message {
     Success(String),
     Error(String),
@@ -463,6 +477,67 @@ fn create_owner(payload: OwnerPayload) -> Result<Owner, Message> {
     Ok(owner)
 }
 
+#[ic_cdk::update]
+fn update_owner(payload: UpdateOwnerPayload) -> Result<Owner, Message> {
+    OWNERS_STORAGE.with(|storage| {
+        let mut owners = storage.borrow_mut();
+        if let Some(mut owner) = owners.remove(&payload.id) {
+            if let Some(name) = payload.name {
+                owner.name = name;
+            }
+            if let Some(email) = payload.email {
+                let email_regex = Regex::new(r"^[^\s@]+@[^\s@]+\.[^\s@]+$").unwrap();
+                if !email_regex.is_match(&email) {
+                    return Err(Message::InvalidPayload(
+                        "Invalid email address format".to_string(),
+                    ));
+                }
+                owner.email = email;
+            }
+            owners.insert(payload.id, owner.clone());
+            Ok(owner)
+        } else {
+            Err(Message::NotFound("Owner not found".to_string()))
+        }
+    })
+}
+
+#[ic_cdk::update]
+fn delete_property(id: u64) -> Result<(), Message> {
+    PROPERTIES_STORAGE.with(|storage| {
+        let mut properties = storage.borrow_mut();
+        if properties.remove(&id).is_some() {
+            Ok(())
+        } else {
+            Err(Message::NotFound("Property not found".to_string()))
+        }
+    })
+}
+
+#[ic_cdk::update]
+fn delete_owner(id: u64) -> Result<(), Message> {
+    OWNERS_STORAGE.with(|storage| {
+        let mut owners = storage.borrow_mut();
+        if owners.remove(&id).is_some() {
+            Ok(())
+        } else {
+            Err(Message::NotFound("Owner not found".to_string()))
+        }
+    })
+}
+
+#[ic_cdk::update]
+fn delete_transaction(id: u64) -> Result<(), Message> {
+    TRANSACTIONS_STORAGE.with(|storage| {
+        let mut transactions = storage.borrow_mut();
+        if transactions.remove(&id).is_some() {
+            Ok(())
+        } else {
+            Err(Message::NotFound("Transaction not found".to_string()))
+        }
+    })
+}
+
 #[ic_cdk::query]
 fn get_owners() -> Result<Vec<Owner>, Message> {
     OWNERS_STORAGE.with(|storage| {
@@ -518,6 +593,41 @@ fn get_transaction_by_id(id: u64) -> Result<Transaction, Message> {
             .find(|(_, transaction)| transaction.id == id)
             .map(|(_, transaction)| transaction.clone())
             .ok_or(Message::NotFound("Transaction not found".to_string()))
+    })
+}
+
+#[ic_cdk::query]
+fn search_transactions(payload: SearchTransactionPayload) -> Result<Vec<Transaction>, Message> {
+    TRANSACTIONS_STORAGE.with(|storage| {
+        let transactions: Vec<Transaction> = storage
+            .borrow()
+            .iter()
+            .filter(|(_, transaction)| {
+                if let Some(from_owner_id) = payload.from_owner_id {
+                    if transaction.from_owner_id != from_owner_id {
+                        return false;
+                    }
+                }
+                if let Some(to_owner_id) = payload.to_owner_id {
+                    if transaction.to_owner_id != to_owner_id {
+                        return false;
+                    }
+                }
+                if let Some(property_id) = payload.property_id {
+                    if transaction.property_id != property_id {
+                        return false;
+                    }
+                }
+                true
+            })
+            .map(|(_, transaction)| transaction.clone())
+            .collect();
+
+        if transactions.is_empty() {
+            Err(Message::NotFound("No transactions found".to_string()))
+        } else {
+            Ok(transactions)
+        }
     })
 }
 
